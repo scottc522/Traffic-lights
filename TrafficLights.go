@@ -42,13 +42,16 @@ func TrafficLight(id int, allowedToBeRed <-chan bool, setAllowedToBeRed chan<- b
 			}
 			select {
 			case <-PeopleWantToCross:
+
 				fmt.Println("Please Cross the Road")
 				time.Sleep(time.Second * 3)
 				fmt.Println("Please cross quicker")
 				time.Sleep(time.Second * 3)
 				fmt.Println("Please do not cross")
+
 			default:
-				setAllowedToBeRed <- true
+				fmt.Println("donkey")
+
 			}
 			setAllowedToBeRed <- true
 
