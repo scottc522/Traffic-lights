@@ -8,65 +8,47 @@ package main
 // Imported packages
 
 import (
-	"fmt"       // for console I/O
-	"math/rand" // for randomly creating opcodes
-	"time"      // for the random number generator and 'executing' opcodes
+	"fmt" // for console I/O
+	// for randomly creating opcodes
+	"time" // for the random number generator and 'executing' opcodes
 )
 
-//////////////////////////////////////////////////////////////////////////////////
-//instruction struct
-//////////////////////////////////////////////////////////////////////////////////
-type instruction struct {
-	id, opcode int
-}
-
-//////////////////////////////////////////////////////////////////////////////////
-// Function/Process definitions
-//////////////////////////////////////////////////////////////////////////////////
-
-//----------------------------------------------------------------------------------
-// Randomly generate an instruction 'opcode' between 1 and 5 and send to the retire function
-//----------------------------------------------------------------------------------
-
-func generateInstructions(instructions []chan instruction, done []chan bool) {
-	go executeInstruction(instructions[0])
-	go executeInstruction(instructions[1])
-	go executeInstruction(instructions[2])
-	for i := 1; i < 100; i++ { // do forever
-		var newInstruction instruction
-		newInstruction.id = i
-		newInstruction.opcode = (rand.Intn(5) + 1) // Randomly generate a new opcode (between 1 and 5)
-		fmt.Printf("Instruction: %d\n", newInstruction.opcode)
-		instructions[newInstruction.id%3] <- newInstruction
-
-		// Report this to console display
-	}
-
-}
-
-//--------------------------------------------------------------------------------
-// Executes the instruction by waiting number of seconds instruction gives
-//...............................................................................
-func executeInstruction(execute <-chan instruction) {
+func TrafficLight(id int, allowedToBeRed <-chan bool, setAllowedToBeRed chan<- bool) {
 	for {
-		inst := <-execute
-		fmt.Printf("executing instruction %d\n", inst.id)
-		time.Sleep(time.Second * time.Duration(inst.opcode))
+		IGoGreen := <-allowedToBeRed
 
-	}
-}
+		if IGoGreen == true {
+			fmt.Println(id, " is red amber")
+			for i := 0; i < 1; i++ {
 
-//--------------------------------------------------------------------------------
-// Retires instructions by writing them to the console
-//--------------------------------------------------------------------------------
+				time.Sleep(time.Second * 1)
+			}
+			fmt.Println(id, "is am green")
+			for i := 0; i < 3; i++ {
 
-func retireInstruction(retired <-chan instruction) {
+				time.Sleep(time.Second * 1)
+			}
+			fmt.Println(id, "is amber")
+			for i := 0; i < 1; i++ {
 
-	for { // do forever
-		// Receive an instruction from the generator
-		opcode := <-retired
+				time.Sleep(time.Second * 1)
+			}
+			fmt.Println(id, "is red")
+			for i := 0; i < 1; i++ {
 
-		fmt.Printf("Retired: %d \n", opcode) // Report to console
+				time.Sleep(time.Second)
+			}
+			setAllowedToBeRed <- true
+		}
+		if IGoGreen == false {
+			fmt.Println(id, "Is on Red")
+			for i := 0; i < 6; i++ {
+
+				time.Sleep(time.Second * 1)
+			}
+			fmt.Println(id, "Is on Red")
+			setAllowedToBeRed <- false
+		}
 	}
 }
 
@@ -75,22 +57,50 @@ func retireInstruction(retired <-chan instruction) {
 //////////////////////////////////////////////////////////////////////////////////
 
 func main() {
-	rand.Seed(time.Now().Unix()) // Seed the random number generator
+	// launch two go routines. Both want to listening on a channel. When one goes Red it tells the other to start going green
+	//When revices red signal
+	//Go amber for 3 seconds
+	//Go green for 6
+	//Go amber red for 3 second
+	//Go red
+	//Send signal
 
-	// Set up required channel
-	instructions := make([]chan instruction, 3) //arrayOfChannels
-	done := make([]chan bool, 3)
-	for i := range instructions {
-		instructions[i] = make(chan instruction)
-		done[i] = make(chan bool)
+	// Set up required channels
+	allowedToBeRed := make([]chan bool, 2)
+
+	for i := range allowedToBeRed { // Now set them up.
+		allowedToBeRed[i] = make(chan bool)
+
 	}
 
-	go generateInstructions(instructions, done)
-	//opcodes := make(chan int) // channel for flow of generated opcodes
+	fmt.Println("\n Start Traffic light processors ...")
+	for i := 0; i < 2; i++ {
 
-	// Now start the goroutines in parallel.
-	fmt.Printf("Start Go routines...\n")
+		go TrafficLight(i, allowedToBeRed[i], allowedToBeRed[(i+1)%2])
+	}
+
+	allowedToBeRed[0] <- true
+	allowedToBeRed[1] <- false
+
 	for {
+		for j := 0; j < 2; j++ {
+			fmt.Println("j is ", j)
+			fmt.Println("traffic light 0", <-allowedToBeRed[0])
+			fmt.Println("traffic light 1", <-allowedToBeRed[1])
+			if j == 0 {
+				allowedToBeRed[j] <- false
+
+				allowedToBeRed[j+1] <- true
+			} else {
+				allowedToBeRed[j] <- false
+
+				allowedToBeRed[j-1] <- true
+			}
+			//if false == <-allowedToBeRed[j] {
+			//	allowedToBeRed[j] <- true
+			//	allowedToBeRed[(j+1)%2] <- false
+			//}
+		}
 	}
 
-} // end of main /////////////////////////////////////////////////////////////////
+} // end of main
